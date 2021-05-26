@@ -29,52 +29,65 @@ class Fsm;
 
 typedef void (Fsm::*FsmMemFn)();
 
-struct StateInterface {
+struct StateInterface
+{
   virtual void enter() = 0;
   virtual void state() = 0;
   virtual void exit() = 0;
 };
 
-struct State : StateInterface {
+struct State : StateInterface
+{
   State(void (*on_enter)(), void (*on_state)(), void (*on_exit)());
   void (*on_enter)();
   void (*on_state)();
   void (*on_exit)();
-  void enter() {
+  void enter()
+  {
     if (on_enter != nullptr)
       on_enter();
   };
-  void state() {
+  void state()
+  {
     if (on_state != nullptr)
       on_state();
   };
-  void exit() {
+  void exit()
+  {
     if (on_exit != nullptr)
       on_exit();
   };
 };
 
-struct StateMember : StateInterface {
+struct StateMember : StateInterface
+{
   StateMember(FsmMemFn on_enter, FsmMemFn on_state, FsmMemFn on_exit, Fsm *fsm);
   FsmMemFn on_enter;
   FsmMemFn on_state;
   FsmMemFn on_exit;
   Fsm *fsm;
-  void enter() {
+  void enter()
+  {
     if (on_enter != nullptr)
-      CALL_MEMBER_FN(fsm, on_enter)();
+      CALL_MEMBER_FN(fsm, on_enter)
+    ();
   };
-  void state() {
+  void state()
+  {
     if (on_state != nullptr)
-      CALL_MEMBER_FN(fsm, on_state)();
+      CALL_MEMBER_FN(fsm, on_state)
+    ();
   };
-  void exit() {
+  void exit()
+  {
     if (on_exit != nullptr)
-      CALL_MEMBER_FN(fsm, on_exit)();
+      CALL_MEMBER_FN(fsm, on_exit)
+    ();
   };
 };
 
-class Fsm {
+class Fsm
+{
 public:
   Fsm(StateInterface *initial_state);
   virtual ~Fsm();
@@ -101,30 +114,38 @@ public:
   StateInterface *get_current_state();
 
 protected:
-  struct TransitionInterface {
+  struct TransitionInterface
+  {
     StateInterface *state_from;
     StateInterface *state_to;
     int event;
     virtual void transition() = 0;
     TransitionInterface *next;
   };
-  struct Transition : TransitionInterface {
+  struct Transition : TransitionInterface
+  {
     void (*on_transition)();
-    void transition() {
-      if (on_transition != nullptr) {
+    void transition()
+    {
+      if (on_transition != nullptr)
+      {
         on_transition();
       }
     }
   };
-  struct TransitionMember : TransitionInterface {
+  struct TransitionMember : TransitionInterface
+  {
     FsmMemFn on_transition;
     Fsm *fsm;
-    void transition() {
+    void transition()
+    {
       if (on_transition != nullptr)
-        CALL_MEMBER_FN(fsm, on_transition)();
+        CALL_MEMBER_FN(fsm, on_transition)
+      ();
     };
   };
-  struct TimedTransition {
+  struct TimedTransition
+  {
     TransitionInterface *transition;
     unsigned long start;
     unsigned long interval;
@@ -158,5 +179,39 @@ private:
   TimedTransition *m_timed_transitions;
   bool m_initialized;
 };
+
+class FsmList{
+      public :
+          /*!
+     @brief FsmList constructor.
+     @param[in] fsms pointer to list of FSM objects
+     @param[in] num_fsms number of FSMs in list
+  */
+          FsmList(Fsm * *fsms, int num_fsms);
+
+      /*!
+     @brief FsmList destructor.
+  */
+      virtual ~FsmList();
+
+      /*!
+     @brief Triggers all FSMs in list with new event.
+     @param[in] event event to trigger
+     @return FSMs were successfully triggered
+  */
+      bool trigger(const EventList &event);
+
+      /*!
+     @brief Run all FSMs in list.
+  */
+      void runMachines();
+
+      private :
+          /** Pointer to list of FSMs. */
+          Fsm * *fsms_;
+
+      /** Number of FSMs. */
+      int num_fsms_;
+   };
 
 #endif

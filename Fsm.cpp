@@ -226,3 +226,30 @@ void Fsm::reset_timers(void) {
     head = ttransition->next;
   }
 }
+
+FsmList::FsmList(Fsm **fsms, int num_fsms)
+    : fsms_(fsms), num_fsms_(num_fsms) {
+}
+
+FsmList::~FsmList() {}
+
+bool FsmList::trigger(const EventList &event) {
+  // check for valid event
+  if (event != NO_EVENT) {
+    // loop through fsms, trigger
+    for (int i = 0; i < num_fsms_; i++) {
+
+      fsms_[i]->trigger(event);
+    }
+    return true;
+  }
+  return false;
+}
+
+void FsmList::runMachines() {
+  // run state machines
+  for (int i = 0; i < num_fsms_; i++) {
+    fsms_[i]->run_machine();
+
+  }
+}
