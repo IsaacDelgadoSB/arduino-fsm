@@ -16,70 +16,147 @@
 #ifndef FSM_H
 #define FSM_H
 
-
 #if defined(ARDUINO) && ARDUINO >= 100
-  #include <Arduino.h>
+#include <Arduino.h>
 #else
-  #include <WProgram.h>
+#include <cstddef>
+#include <stdio.h>
 #endif
 
+#define CALL_MEMBER_FN(object, ptrToMember) ((object)->*(ptrToMember))
 
-struct State
-{
+class Fsm;
+
+typedef void (Fsm::*FsmMemFn)();
+
+struct StateInterface {
+  virtual void enter() = 0;
+  virtual void state() = 0;
+  virtual void exit() = 0;
+};
+
+struct State : StateInterface {
   State(void (*on_enter)(), void (*on_state)(), void (*on_exit)());
   void (*on_enter)();
   void (*on_state)();
   void (*on_exit)();
+  void enter() {
+    if (on_enter != nullptr)
+      on_enter();
+  };
+  void state() {
+    if (on_state != nullptr)
+      on_state();
+  };
+  void exit() {
+    if (on_exit != nullptr)
+      on_exit();
+  };
 };
 
+struct StateMember : StateInterface {
+  StateMember(FsmMemFn on_enter, FsmMemFn on_state, FsmMemFn on_exit, Fsm *fsm);
+  FsmMemFn on_enter;
+  FsmMemFn on_state;
+  FsmMemFn on_exit;
+  Fsm *fsm;
+  void enter() {
+    if (on_enter != nullptr)
+      CALL_MEMBER_FN(fsm, on_enter)();
+  };
+  void state() {
+    if (on_state != nullptr)
+      CALL_MEMBER_FN(fsm, on_state)();
+  };
+  void exit() {
+    if (on_exit != nullptr)
+      CALL_MEMBER_FN(fsm, on_exit)();
+  };
+};
 
-class Fsm
-{
+class Fsm {
 public:
-  Fsm(State* initial_state);
-  ~Fsm();
+  Fsm(StateInterface *initial_state);
+  virtual ~Fsm();
 
-  void add_transition(State* state_from, State* state_to, int event,
-                      void (*on_transition)());
+  void add_transition(StateInterface *state_from, StateInterface *state_to,
+                      int event, void (*on_transition)());
 
-  void add_timed_transition(State* state_from, State* state_to,
-                            unsigned long interval, void (*on_transition)());
+  void add_transition(StateInterface *state_from, StateInterface *state_to,
+                      int event, FsmMemFn on_transition, Fsm *fsm);
+
+  void add_timed_transition(StateInterface *state_from,
+                            StateInterface *state_to, unsigned long interval,
+                            void (*on_transition)());
+
+  void add_timed_transition(StateInterface *state_from,
+                            StateInterface *state_to, unsigned long interval,
+                            FsmMemFn on_transition, Fsm *fsm);
 
   void check_timed_transitions();
 
-  void trigger(int event);
+  virtual void trigger(int event);
   void run_machine();
 
-private:
-  struct Transition
-  {
-    State* state_from;
-    State* state_to;
-    int event;
-    void (*on_transition)();
+  StateInterface *get_current_state();
 
+protected:
+  struct TransitionInterface {
+    StateInterface *state_from;
+    StateInterface *state_to;
+    int event;
+    virtual void transition() = 0;
+    TransitionInterface *next;
   };
-  struct TimedTransition
-  {
-    Transition transition;
+  struct Transition : TransitionInterface {
+    void (*on_transition)();
+    void transition() {
+      if (on_transition != nullptr) {
+        on_transition();
+      }
+    }
+  };
+  struct TransitionMember : TransitionInterface {
+    FsmMemFn on_transition;
+    Fsm *fsm;
+    void transition() {
+      if (on_transition != nullptr)
+        CALL_MEMBER_FN(fsm, on_transition)();
+    };
+  };
+  struct TimedTransition {
+    TransitionInterface *transition;
     unsigned long start;
     unsigned long interval;
+    TimedTransition *next;
   };
 
-  static Transition create_transition(State* state_from, State* state_to,
-                                      int event, void (*on_transition)());
+  void make_transition(TransitionInterface *transition);
 
-  void make_transition(Transition* transition);
+  void reset_timers();
 
 private:
-  State* m_current_state;
-  Transition* m_transitions;
-  int m_num_transitions;
+  void add_transition(TransitionInterface *transition);
 
-  TimedTransition* m_timed_transitions;
-  int m_num_timed_transitions;
+  void add_timed_transition(unsigned long interval,
+                            TransitionInterface *transition);
+
+  TransitionInterface *create_transition(StateInterface *state_from,
+                                         StateInterface *state_to, int event,
+                                         void (*on_transition)());
+
+  TransitionInterface *create_transition(StateInterface *state_from,
+                                         StateInterface *state_to, int event,
+                                         FsmMemFn on_transition, Fsm *fsm);
+
+  TransitionInterface *create_transition(StateInterface *state_from,
+                                         StateInterface *state_to, int event,
+                                         TransitionInterface *transition);
+
+  StateInterface *m_current_state;
+  TransitionInterface *m_transitions;
+  TimedTransition *m_timed_transitions;
   bool m_initialized;
 };
-
 
 #endif
