@@ -233,9 +233,9 @@ FsmList::FsmList(Fsm **fsms, int num_fsms)
 
 FsmList::~FsmList() {}
 
-bool FsmList::trigger(const EventList &event) {
+bool FsmList::trigger(const int &event) {
   // check for valid event
-  if (event != NO_EVENT) {
+  if (event != 0) {
     // loop through fsms, trigger
     for (int i = 0; i < num_fsms_; i++) {
 

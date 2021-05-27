@@ -199,7 +199,7 @@ class FsmList{
      @param[in] event event to trigger
      @return FSMs were successfully triggered
   */
-      bool trigger(const EventList &event);
+      bool trigger(const int &event);
 
       /*!
      @brief Run all FSMs in list.
